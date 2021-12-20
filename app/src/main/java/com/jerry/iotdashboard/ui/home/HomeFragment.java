@@ -12,13 +12,17 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.ejlchina.okhttps.HttpResult;
+import com.ejlchina.okhttps.OkHttps;
+import com.ejlchina.okhttps.OnCallback;
 import com.google.gson.Gson;
 import com.jerry.iotdashboard.R;
 import com.jerry.iotdashboard.databinding.FragmentHomeBinding;
 import com.jerry.iotdashboard.pojo.JsonRootBean;
-import com.jerry.iotdashboard.utils.http;
 
-import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,6 +32,10 @@ import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AAChartView;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AAMoveOverEventMessageModel;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartEnum.AAChartType;
 
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
 public class HomeFragment extends Fragment implements AAChartView.AAChartViewCallBack{
 
     private HomeViewModel homeViewModel;
@@ -36,7 +44,7 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
     private AAChartModel aaChartModel;
     private AAChartView aaChartView;
 
-    private http http;
+    private JsonRootBean jdata;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -53,46 +61,56 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
                 textView.setText(s);
             }
         });
-        http = new http();
+        String url="https://io.adafruit.com/api/v2/abao/feeds/blood-oxygen/data/chart?hours=48";
+        OkHttps.async(url)
+                .setOnResponse(new OnCallback<HttpResult>() {
+                    @Override
+                    public void on(HttpResult data) {
+                         String dataBody =data.getBody().cache().toString();
+                         Gson gson = new Gson();
+                         jdata = gson.fromJson(dataBody,JsonRootBean.class);
+
+                        try {
+                            aaChartModel = configureAAChartModel();
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                        }
+                        aaChartView.aa_drawChartWithChartModel(aaChartModel);
+                    }
+                })
+                .get();
+
         setUpAAChartView();
-        aaChartView = root.findViewById(R.id.chart_blood);
-        aaChartModel = configureAAChartModel();
-//        aaChartView.aa_drawChartWithChartModel(aaChartModel);
 
         return root;
     }
 
     void setUpAAChartView() {
-//        aaChartView.callBack = this;
+        aaChartView = root.findViewById(R.id.chart_blood);
+        aaChartView.callBack = this;
     }
 
-    AAChartModel configureAAChartModel()  {
-        String url="https://io.adafruit.com/api/v2/abao/feeds/blood-oxygen/data/chart?hours=48";
-        String jsonData="";
-        try {
-            jsonData= http.get(url);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }catch (RuntimeException e){
-            e.printStackTrace();
+    AAChartModel configureAAChartModel() throws ParseException {
 
-        }
-        Gson gson =new Gson();
-        JsonRootBean jdata=gson.fromJson(jsonData,JsonRootBean.class);//解析掉第一层
-        List<List<Date>> datalist= jdata.getData();
+        List<List<String>> datalist= jdata.getData();
         List<String> xAxis= new LinkedList<>();
-        List<Integer> yAxis= new LinkedList<>();
-//        for (List<Date> item : datalist) {
-//            item;
-//        }
+        List<Float> yAxis= new LinkedList<>();
+        DateTimeFormatter parser = ISODateTimeFormat.dateTimeNoMillis();
+        for (List<String> item : datalist) {
+            if(item.get(1).equals("-999.0")) continue;
+            DateTime datetime = parser.parseDateTime(item.get(0));
+            xAxis.add(datetime.toString("yyyy年MM月dd日HH时mm分ss秒"));
+            yAxis.add(Float.parseFloat(item.get(1)));
+        }
         aaChartModel = new AAChartModel()
                 .chartType(AAChartType.Line)
 //                .title("THE HEAT OF PROGRAMMING LANGUAGE")
 //                .subtitle("Virtual Data")
                 .backgroundColor("#000000")
-                .categories(new String[]{"blood oxygen"})
+                .categories(xAxis.toArray(new String[xAxis.size()]))
                 .dataLabelsEnabled(false)
-                .yAxisGridLineWidth(0f);
+                .yAxisGridLineWidth(0f)
+        .series(yAxis.toArray(new Float[0]));
         return aaChartModel;
     }
     @Override
