@@ -4,8 +4,10 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         jcenter() // Warning: this repository is going to shut down soon
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://jitpack.io'
+            }
 
+        maven { url "https://repo.eclipse.org/content/repositories/paho-snapshots/" }
     }
 }
 rootProject.name = "iotdashboard"

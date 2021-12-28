@@ -16,9 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.ejlchina.okhttps.HTTP;
 import com.ejlchina.okhttps.HttpResult;
-import com.ejlchina.okhttps.OkHttps;
 import com.ejlchina.okhttps.OnCallback;
-import com.ejlchina.okhttps.okhttp.OkHttpClientWrapper;
 import com.google.gson.Gson;
 import com.hjq.toast.ToastUtils;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AASeriesElement;
@@ -125,7 +123,7 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
          })
             .build();
 
-        for(String url: url.urls){
+        for(String url: url.chartURLs){
             http.async(url)
                     .setOnResponse(new OnCallback<HttpResult>() {
                         @Override

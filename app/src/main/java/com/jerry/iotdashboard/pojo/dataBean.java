@@ -51,5 +51,8 @@ public class dataBean {
      public List<List<String>> getData() {
          return data;
      }
+     public List<String> getLastData(){
+        return data.get(data.size()-1);
+     }
 
 }
