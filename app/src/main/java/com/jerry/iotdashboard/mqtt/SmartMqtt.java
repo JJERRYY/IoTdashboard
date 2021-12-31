@@ -75,7 +75,7 @@ public class SmartMqtt {
         //登陆的名字
         mqttConnectOptions.setUserName("abao".trim());
         //登陆的密码
-        mqttConnectOptions.setPassword("aio_Ufwe13qZ2Tyup2luacUHvZ3emenM".trim().toCharArray());
+        mqttConnectOptions.setPassword("aio_obBu72TjcE5CQajbDxlbdLYHJyIj".trim().toCharArray());
 
         //超时时间
         mqttConnectOptions.setConnectionTimeout(100);

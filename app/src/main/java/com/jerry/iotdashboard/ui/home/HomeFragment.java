@@ -21,12 +21,16 @@ import com.google.gson.Gson;
 import com.hjq.toast.ToastUtils;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AASeriesElement;
 import com.jerry.iotdashboard.Adapter.QuickAdapter;
+import com.jerry.iotdashboard.MainActivity;
 import com.jerry.iotdashboard.R;
 import com.jerry.iotdashboard.databinding.FragmentHomeBinding;
+import com.jerry.iotdashboard.mqtt.SmartMqtt;
+import com.jerry.iotdashboard.mqtt.mqttConfig;
 import com.jerry.iotdashboard.pojo.dataBean;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,6 +38,7 @@ import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AAChartModel;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AAChartView;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartCreator.AAMoveOverEventMessageModel;
 import com.jerry.iotdashboard.AAChartCoreLib.AAChartEnum.AAChartType;
+import com.jerry.iotdashboard.pojo.noticeBean;
 import com.jerry.iotdashboard.url;
 
 import org.joda.time.DateTime;
@@ -46,10 +51,12 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
     private FragmentHomeBinding binding;
     private View root;
     private RecyclerView mRecyclerView;
-    private RecyclerView.LayoutManager mLayoutManager;
+    private LinearLayoutManager mLayoutManager;
     private QuickAdapter mQuickAdapter;
     private AAChartModel aaChartModel;
     private AAChartView aaChartView;
+    private SmartMqtt mqtt;
+    private HashSet<noticeBean> noticeBeans;
 
     private int receiveFlag =0;
 
@@ -62,56 +69,21 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
 
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         root = binding.getRoot();
+        startMqtt();
         mRecyclerView = root.findViewById(R.id.rcView);
         mLayoutManager =  new LinearLayoutManager(getContext());
-        mQuickAdapter = new QuickAdapter();
+        mQuickAdapter = new QuickAdapter(getActivity());
         mRecyclerView.setLayoutManager(mLayoutManager);
         mRecyclerView.setAdapter(mQuickAdapter);
         requestUrls();
-//        final TextView textView = binding.textHome;
-//        homeViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
-//            @Override
-//            public void onChanged(@Nullable String s) {
-//                textView.setText(s);
-//            }
-//        });
-//        String url="https://io.adafruit.com/api/v2/abao/feeds/blood-oxygen/data/chart?hours=48";
-//        OkHttps.async(url)
-//                .setOnResponse(new OnCallback<HttpResult>() {
-//                    @Override
-//                    public void on(HttpResult data) {
-//                         String dataBody =data.getBody().cache().toString();
-//                         Gson gson = new Gson();
-//                         jdata = gson.fromJson(dataBody, dataBean.class);
-//
-////                        try {
-////                            aaChartModel = configureAAChartModel();
-////                            ToastUtils.show("model完成");
-////                        } catch (ParseException e) {
-////                            e.printStackTrace();
-////                        }
-//
-//                    }
-//                })
-//                .get();
-
-//        setUpAAChartView();
-//        while(aaChartModel==null){
-//            ToastUtils.show("等待异步结果");
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
-
-//        if(aaChartModel!=null) {
-//            aaChartView.aa_drawChartWithChartModel(aaChartModel);
-//            ToastUtils.show("加载统计图");
-//        }
         return root;
     }
-
+    void startMqtt(){
+        mqtt = SmartMqtt.getInstance();
+        mqtt.init(getContext());
+        mqtt.connect(mqttConfig.server,mqttConfig.clientId+System.nanoTime());
+//        mqtt.subscribe(mqttConfig.topic, 1);
+    }
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
@@ -122,7 +94,6 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
         new Handler(Looper.getMainLooper()).post(run); // 在主线程执行
          })
             .build();
-
         for(String url: url.chartURLs){
             http.async(url)
                     .setOnResponse(new OnCallback<HttpResult>() {
@@ -134,17 +105,14 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
                             jdata = gson.fromJson(dataBody, dataBean.class);
                             ToastUtils.show(jdata.getFeed().getName()+"Received");
                             dataBeans.add(jdata);
-//                        try {
-//                            aaChartModel = configureAAChartModel();
-//                            ToastUtils.show("model完成");
-//                        } catch (ParseException e) {
-//                            e.printStackTrace();
-//                        }
 
                             if(receiveFlag==5){
                                 mQuickAdapter.setNewInstance(dataBeans);
                                 ToastUtils.show("适配器数据压入");
+//                                mLayoutManager. scrollToPositionWithOffset(mQuickAdapter.getItemCount() - 1, Integer.MIN_VALUE);
+                                for (dataBean dataBean:dataBeans) checkDataBean(dataBean);
                             }
+
                         }
                     })
                     .setOnException((IOException e) -> {
@@ -153,9 +121,45 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
                     })
                     .get();
         }
-
+    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        noticeBeans = ((MainActivity) getActivity()).getNoticeBeans();
     }
 
+    void checkDataBean(dataBean dataBean){
+        noticeBeans = ((MainActivity) getActivity()).getNoticeBeans();
+        String dataName = dataBean.getFeed().getName();
+        Float value = Float.parseFloat (dataBean.getLastData().get(1));
+        String time = dataBean.getLastData().get(0);
+        switch (dataName){
+            case "room-temperature":
+                if (value >30 || value<0)
+                    if(noticeBeans.add(new noticeBean().setType(dataName).setValue(value).setTime(time).setAction("异常报警")))
+                        mqtt.sendData("3".getBytes(), mqttConfig.topic);
+                break;
+            case "temperature":
+                if (value >37.5 || value<36 )
+                    if(noticeBeans.add(new noticeBean().setType(dataName).setValue(value).setTime(time).setAction("异常报警")))
+                        mqtt.sendData("3".getBytes(),mqttConfig.topic);
+                break;
+            case "heart-rate":
+                if (value >200|| value<40 )
+                    if(noticeBeans.add(new noticeBean().setType(dataName).setValue(value).setTime(time).setAction("异常报警")))
+                        mqtt.sendData("3".getBytes(),mqttConfig.topic);
+                break;
+            case 	"blood-oxygen":
+                if (value >100 || value<80 )
+                    if(noticeBeans.add(new noticeBean().setType(dataName).setValue(value).setTime(time).setAction("异常报警")))
+                        mqtt.sendData("3".getBytes(),mqttConfig.topic);
+                break;
+            case "lwir-one":
+            case "lwir-two":
+                noticeBeans.add(new noticeBean().setType(dataName).setValue(value).setTime(time).setAction("提醒"));
+                break;
+        }
+    }
     void setUpAAChartView() {
         aaChartView = root.findViewById(R.id.item_chart);
         aaChartView.callBack = this;
@@ -174,10 +178,10 @@ public class HomeFragment extends Fragment implements AAChartView.AAChartViewCal
             yAxis.add(Float.parseFloat(item.get(1)));
         }
         aaChartModel = new AAChartModel()
-                .chartType(AAChartType.Line)
+                .chartType(AAChartType.Area)
 //                .title("THE HEAT OF PROGRAMMING LANGUAGE")
 //                .subtitle("Virtual Data")
-                .backgroundColor("#000000")
+                .backgroundColor(getResources().getColor(R.color.white))
                 .categories(xAxis.toArray(new String[xAxis.size()]))
                 .dataLabelsEnabled(true)
                 .yAxisGridLineWidth(0f)

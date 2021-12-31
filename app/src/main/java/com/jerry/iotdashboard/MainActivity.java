@@ -17,12 +17,21 @@ import com.hjq.permissions.XXPermissions;
 import com.hjq.toast.ToastUtils;
 import com.jerry.iotdashboard.databinding.ActivityMainBinding;
 import com.jerry.iotdashboard.mqtt.SmartMqtt;
+import com.jerry.iotdashboard.pojo.noticeBean;
 
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
+
+    public HashSet<noticeBean> getNoticeBeans() {
+        return noticeBeans;
+    }
+
+    public HashSet<noticeBean> noticeBeans;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,7 +40,6 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
 
         setContentView(binding.getRoot());
-
         BottomNavigationView navView = findViewById(R.id.nav_view);
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
@@ -42,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(binding.navView, navController);
         ToastUtils.init(getApplication());
-
+        noticeBeans = new LinkedHashSet<noticeBean>();
 
 //        XXPermissions.with(this)
 //                // 申请单个权限

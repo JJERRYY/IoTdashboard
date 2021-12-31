@@ -44,18 +44,19 @@ public class dashboardAdapter extends BaseQuickAdapter<dbBean, BaseViewHolder> {
         //3为啥都不显示：普通传感器
         switch (dbBean.getType()){
             case 1:
-                Switch.setVisibility(View.INVISIBLE);
+                Switch.setVisibility(View.GONE);
                 mButton.setVisibility(View.VISIBLE);
                 mButton.setBackgroundColor(getContext().getResources().getColor(R.color.yellow));
-                mButton.setText("蜂鸣");
+//                mButton.setText("蜂鸣");
                 break;
             case 2:
+
                 Switch.setVisibility(View.VISIBLE);
-                mButton.setVisibility(View.INVISIBLE);
+                mButton.setVisibility(View.GONE);
                 break;
             case 3:
-                Switch.setVisibility(View.INVISIBLE);
-                mButton.setVisibility(View.INVISIBLE);
+                Switch.setVisibility(View.GONE);
+                mButton.setVisibility(View.GONE);
                 break;
         }
 //        Switch.setOnClickListener(new View.OnClickListener() {

@@ -17,6 +17,7 @@ public class dataBean {
     private List<String> columns;
     private String storage;
     private List<List<String>> data;
+
     public void setFeed(Feed feed) {
          this.feed = feed;
      }
@@ -52,6 +53,8 @@ public class dataBean {
          return data;
      }
      public List<String> getLastData(){
+        if(data.isEmpty()) return null;
+
         return data.get(data.size()-1);
      }
 
